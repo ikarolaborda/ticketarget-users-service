@@ -26,7 +26,7 @@ final readonly class LoginController
 
         return response()->json([
             'token' => $this->tokens->issue($user),
-            'user' => ['id' => $user->id, 'name' => $user->name, 'email' => $user->email],
+            'user' => ['id' => $user->id, 'name' => $user->name, 'email' => $user->email, 'is_admin' => $user->is_admin === true],
         ]);
     }
 }

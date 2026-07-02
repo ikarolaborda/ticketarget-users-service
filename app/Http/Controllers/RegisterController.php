@@ -23,6 +23,9 @@ final readonly class RegisterController
         $user->name = trim($request->validated('name'));
         $user->email = $request->normalizedEmail();
         $user->password = Hash::make($request->validated('password'));
+        // Set explicitly: strict models forbid reading a column the INSERT
+        // never touched, and the issuer reads it for the is_admin claim.
+        $user->is_admin = false;
 
         try {
             $user->save();
@@ -34,7 +37,7 @@ final readonly class RegisterController
 
         return response()->json([
             'token' => $this->tokens->issue($user),
-            'user' => ['id' => $user->id, 'name' => $user->name, 'email' => $user->email],
+            'user' => ['id' => $user->id, 'name' => $user->name, 'email' => $user->email, 'is_admin' => $user->is_admin === true],
         ], 201);
     }
 }

@@ -23,7 +23,7 @@ final readonly class MeController
         }
 
         return response()->json([
-            'user' => ['id' => $claims['sub'], 'name' => $claims['name'], 'email' => $claims['email']],
+            'user' => ['id' => $claims['sub'], 'name' => $claims['name'], 'email' => $claims['email'], 'is_admin' => $claims['is_admin']],
         ]);
     }
 }

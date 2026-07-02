@@ -16,4 +16,9 @@ final class User extends Model
     use HasUuids;
 
     protected $hidden = ['password', 'remember_token'];
+
+    protected function casts(): array
+    {
+        return ['is_admin' => 'boolean'];
+    }
 }

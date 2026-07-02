@@ -46,7 +46,7 @@ final readonly class UpdateProfileController
 
         if (! $changed) {
             return response()->json([
-                'user' => ['id' => $user->id, 'name' => $user->name, 'email' => $user->email],
+                'user' => ['id' => $user->id, 'name' => $user->name, 'email' => $user->email, 'is_admin' => $user->is_admin === true],
             ]);
         }
 
@@ -60,7 +60,7 @@ final readonly class UpdateProfileController
         // with a fresh token or every client keeps presenting stale identity.
         return response()->json([
             'token' => $this->tokens->issue($user),
-            'user' => ['id' => $user->id, 'name' => $user->name, 'email' => $user->email],
+            'user' => ['id' => $user->id, 'name' => $user->name, 'email' => $user->email, 'is_admin' => $user->is_admin === true],
         ]);
     }
 }

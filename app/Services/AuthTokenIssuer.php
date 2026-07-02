@@ -36,6 +36,7 @@ final readonly class AuthTokenIssuer
             'sub' => $user->id,
             'email' => $user->email,
             'name' => $user->name,
+            'is_admin' => $user->is_admin === true,
             'iat' => $now,
             'exp' => $now + $this->ttlSeconds,
         ], JSON_THROW_ON_ERROR));
@@ -44,7 +45,7 @@ final readonly class AuthTokenIssuer
     }
 
     /**
-     * @return array{sub: string, email: string, name: string}|null claims, or null when invalid
+     * @return array{sub: string, email: string, name: string, is_admin: bool}|null claims, or null when invalid
      */
     public function verify(string $token): ?array
     {
@@ -78,7 +79,14 @@ final readonly class AuthTokenIssuer
             return null;
         }
 
-        return ['sub' => $claims['sub'], 'email' => $claims['email'], 'name' => $claims['name']];
+        // Tokens minted before the admin rollout carry no is_admin claim;
+        // they are plain customers, never admins.
+        return [
+            'sub' => $claims['sub'],
+            'email' => $claims['email'],
+            'name' => $claims['name'],
+            'is_admin' => ($claims['is_admin'] ?? null) === true,
+        ];
     }
 
     private function sign(string $signingInput): string
