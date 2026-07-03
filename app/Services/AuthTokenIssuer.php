@@ -19,8 +19,7 @@ final readonly class AuthTokenIssuer
         private string $secret,
         private int $ttlSeconds,
         private string $issuer,
-    ) {
-    }
+    ) {}
 
     public function issue(User $user): string
     {

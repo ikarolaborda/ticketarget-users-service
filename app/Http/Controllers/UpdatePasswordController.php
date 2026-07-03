@@ -13,9 +13,7 @@ use Symfony\Component\HttpFoundation\Response;
 
 final readonly class UpdatePasswordController
 {
-    public function __construct(private AuthTokenIssuer $tokens)
-    {
-    }
+    public function __construct(private AuthTokenIssuer $tokens) {}
 
     public function __invoke(UpdatePasswordRequest $request): JsonResponse
     {

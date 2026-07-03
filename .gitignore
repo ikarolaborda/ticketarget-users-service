@@ -5,3 +5,4 @@
 !/storage/logs/.gitkeep
 /bootstrap/cache/*.php
 .DS_Store
+/.phpstan

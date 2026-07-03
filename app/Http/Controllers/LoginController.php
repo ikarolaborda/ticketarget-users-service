@@ -13,9 +13,7 @@ use Symfony\Component\HttpFoundation\Response;
 
 final readonly class LoginController
 {
-    public function __construct(private AuthTokenIssuer $tokens)
-    {
-    }
+    public function __construct(private AuthTokenIssuer $tokens) {}
 
     public function __invoke(LoginRequest $request): JsonResponse
     {

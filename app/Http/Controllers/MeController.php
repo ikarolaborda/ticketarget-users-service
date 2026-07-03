@@ -11,9 +11,7 @@ use Symfony\Component\HttpFoundation\Response;
 
 final readonly class MeController
 {
-    public function __construct(private AuthTokenIssuer $tokens)
-    {
-    }
+    public function __construct(private AuthTokenIssuer $tokens) {}
 
     public function __invoke(Request $request): JsonResponse
     {

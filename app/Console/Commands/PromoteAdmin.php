@@ -14,6 +14,7 @@ use Illuminate\Console\Command;
 final class PromoteAdmin extends Command
 {
     protected $signature = 'admin:promote {email} {--demote : Revoke the admin flag instead}';
+
     protected $description = 'Grant (or revoke, with --demote) the admin flag on an account';
 
     public function handle(): int

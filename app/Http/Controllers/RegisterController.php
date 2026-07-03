@@ -14,13 +14,11 @@ use Symfony\Component\HttpFoundation\Response;
 
 final readonly class RegisterController
 {
-    public function __construct(private AuthTokenIssuer $tokens)
-    {
-    }
+    public function __construct(private AuthTokenIssuer $tokens) {}
 
     public function __invoke(RegisterRequest $request): JsonResponse
     {
-        $user = new User();
+        $user = new User;
         $user->name = trim($request->validated('name'));
         $user->email = $request->normalizedEmail();
         $user->password = Hash::make($request->validated('password'));
