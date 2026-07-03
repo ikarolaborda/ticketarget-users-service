@@ -9,6 +9,7 @@ use App\Models\User;
 use App\Services\AuthTokenIssuer;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Hash;
+use Symfony\Component\HttpFoundation\Response;
 
 final readonly class LoginController
 {
@@ -21,7 +22,7 @@ final readonly class LoginController
         $user = User::query()->where('email', $request->normalizedEmail())->first();
 
         if ($user === null || ! Hash::check($request->validated('password'), $user->password)) {
-            return response()->json(['message' => 'Invalid email or password.'], 401);
+            return response()->json(['message' => 'Invalid email or password.'], Response::HTTP_UNAUTHORIZED);
         }
 
         return response()->json([

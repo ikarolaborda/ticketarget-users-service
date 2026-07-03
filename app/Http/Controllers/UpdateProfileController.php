@@ -9,6 +9,7 @@ use App\Models\User;
 use App\Services\AuthTokenIssuer;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\JsonResponse;
+use Symfony\Component\HttpFoundation\Response;
 
 final readonly class UpdateProfileController
 {
@@ -21,13 +22,13 @@ final readonly class UpdateProfileController
         $claims = $this->tokens->verify((string) $request->bearerToken());
 
         if ($claims === null) {
-            return response()->json(['message' => 'Unauthenticated.'], 401);
+            return response()->json(['message' => 'Unauthenticated.'], Response::HTTP_UNAUTHORIZED);
         }
 
         $user = User::query()->find($claims['sub']);
 
         if ($user === null) {
-            return response()->json(['message' => 'Unauthenticated.'], 401);
+            return response()->json(['message' => 'Unauthenticated.'], Response::HTTP_UNAUTHORIZED);
         }
 
         $name = $request->validated('name');
@@ -53,7 +54,7 @@ final readonly class UpdateProfileController
         try {
             $user->save();
         } catch (UniqueConstraintViolationException) {
-            return response()->json(['message' => 'An account with this email already exists.'], 422);
+            return response()->json(['message' => 'An account with this email already exists.'], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
 
         // Name/email live inside the token claims, so a claim change must come

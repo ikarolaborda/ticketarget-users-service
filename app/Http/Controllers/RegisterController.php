@@ -10,6 +10,7 @@ use App\Services\AuthTokenIssuer;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Hash;
+use Symfony\Component\HttpFoundation\Response;
 
 final readonly class RegisterController
 {
@@ -32,12 +33,12 @@ final readonly class RegisterController
         } catch (UniqueConstraintViolationException) {
             // The unique index is the source of truth for duplicates, so a
             // concurrent double-submit degrades to the same deterministic 422.
-            return response()->json(['message' => 'An account with this email already exists.'], 422);
+            return response()->json(['message' => 'An account with this email already exists.'], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
 
         return response()->json([
             'token' => $this->tokens->issue($user),
             'user' => ['id' => $user->id, 'name' => $user->name, 'email' => $user->email, 'is_admin' => $user->is_admin === true],
-        ], 201);
+        ], Response::HTTP_CREATED);
     }
 }

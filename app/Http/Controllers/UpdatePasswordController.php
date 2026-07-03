@@ -9,6 +9,7 @@ use App\Models\User;
 use App\Services\AuthTokenIssuer;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Hash;
+use Symfony\Component\HttpFoundation\Response;
 
 final readonly class UpdatePasswordController
 {
@@ -21,13 +22,13 @@ final readonly class UpdatePasswordController
         $claims = $this->tokens->verify((string) $request->bearerToken());
 
         if ($claims === null) {
-            return response()->json(['message' => 'Unauthenticated.'], 401);
+            return response()->json(['message' => 'Unauthenticated.'], Response::HTTP_UNAUTHORIZED);
         }
 
         $user = User::query()->find($claims['sub']);
 
         if ($user === null || ! Hash::check($request->validated('current_password'), $user->password)) {
-            return response()->json(['message' => 'Current password is incorrect.'], 422);
+            return response()->json(['message' => 'Current password is incorrect.'], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
 
         $user->password = Hash::make($request->validated('password'));

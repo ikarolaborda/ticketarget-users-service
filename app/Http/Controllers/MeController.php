@@ -7,6 +7,7 @@ namespace App\Http\Controllers;
 use App\Services\AuthTokenIssuer;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Symfony\Component\HttpFoundation\Response;
 
 final readonly class MeController
 {
@@ -19,7 +20,7 @@ final readonly class MeController
         $claims = $this->tokens->verify((string) $request->bearerToken());
 
         if ($claims === null) {
-            return response()->json(['message' => 'Unauthenticated.'], 401);
+            return response()->json(['message' => 'Unauthenticated.'], Response::HTTP_UNAUTHORIZED);
         }
 
         return response()->json([
