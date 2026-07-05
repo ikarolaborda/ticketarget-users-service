@@ -7,18 +7,28 @@ namespace App\Services;
 use App\Models\User;
 
 /**
- * Issues and verifies stateless HS256 JWTs (RFC 7519 compact form). The
- * implementation is intentionally minimal and strict: the algorithm is FIXED
- * to HS256 (no negotiation, "none" is impossible), every claim is required,
- * and signatures are compared in constant time. Any service holding the
- * shared secret can verify tokens without a round trip.
+ * Issues and verifies the platform's stateless JWTs (RFC 7519 compact form).
+ * Issuance is RS256 only — this service holds the sole private key, so no
+ * other service can mint tokens. Verification accepts RS256 against the
+ * published key ring (active kid plus an optional rotation-overlap key) and,
+ * while the accept_hs256 migration flag stays on, legacy HS256 tokens signed
+ * with the old shared secret. The algorithm is taken from a strictly parsed
+ * header but only ever selects between these two server-configured paths —
+ * "none" or any other downgrade is impossible.
  */
 final readonly class AuthTokenIssuer
 {
+    /**
+     * @param  array<string, string>  $publicKeyPems  kid => PEM accepted on verify (active + rotation overlap)
+     */
     public function __construct(
-        private string $secret,
+        private string $privateKeyPem,
+        private string $kid,
+        private array $publicKeyPems,
         private int $ttlSeconds,
         private string $issuer,
+        private string $legacySecret,
+        private bool $acceptHs256,
     ) {}
 
     public function issue(User $user): string
@@ -26,7 +36,7 @@ final readonly class AuthTokenIssuer
         $now = time();
 
         $header = $this->base64UrlEncode(json_encode(
-            ['alg' => 'HS256', 'typ' => 'JWT'],
+            ['alg' => 'RS256', 'typ' => 'JWT', 'kid' => $this->kid],
             JSON_THROW_ON_ERROR,
         ));
 
@@ -40,7 +50,12 @@ final readonly class AuthTokenIssuer
             'exp' => $now + $this->ttlSeconds,
         ], JSON_THROW_ON_ERROR));
 
-        return $header.'.'.$payload.'.'.$this->sign($header.'.'.$payload);
+        $signature = '';
+        if (openssl_sign($header.'.'.$payload, $signature, $this->privateKeyPem, OPENSSL_ALGO_SHA256) !== true) {
+            throw new \RuntimeException('Failed to sign the auth token with the RS256 private key.');
+        }
+
+        return $header.'.'.$payload.'.'.$this->base64UrlEncode($signature);
     }
 
     /**
@@ -55,12 +70,12 @@ final readonly class AuthTokenIssuer
 
         [$header, $payload, $signature] = $parts;
 
-        if (! hash_equals($this->sign($header.'.'.$payload), $signature)) {
+        $decodedHeader = json_decode($this->base64UrlDecode($header), true);
+        if (! is_array($decodedHeader)) {
             return null;
         }
 
-        $decodedHeader = json_decode($this->base64UrlDecode($header), true);
-        if (! is_array($decodedHeader) || ($decodedHeader['alg'] ?? null) !== 'HS256') {
+        if (! $this->signatureValid($decodedHeader, $header.'.'.$payload, $signature)) {
             return null;
         }
 
@@ -88,9 +103,60 @@ final readonly class AuthTokenIssuer
         ];
     }
 
-    private function sign(string $signingInput): string
+    /**
+     * The RFC 7517 key set for every public key verifiers may accept.
+     *
+     * @return list<array{kty: string, use: string, alg: string, kid: string, n: string, e: string}>
+     */
+    public function jwks(): array
     {
-        return $this->base64UrlEncode(hash_hmac('sha256', $signingInput, $this->secret, true));
+        $keys = [];
+
+        foreach ($this->publicKeyPems as $kid => $pem) {
+            $key = openssl_pkey_get_public($pem);
+            $details = $key === false ? false : openssl_pkey_get_details($key);
+
+            if ($details === false || ! isset($details['rsa']['n'], $details['rsa']['e'])) {
+                throw new \RuntimeException(sprintf('Public key "%s" is not a readable RSA key.', $kid));
+            }
+
+            $keys[] = [
+                'kty' => 'RSA',
+                'use' => 'sig',
+                'alg' => 'RS256',
+                'kid' => (string) $kid,
+                'n' => $this->base64UrlEncode(ltrim($details['rsa']['n'], "\x00")),
+                'e' => $this->base64UrlEncode(ltrim($details['rsa']['e'], "\x00")),
+            ];
+        }
+
+        return $keys;
+    }
+
+    /** @param array<mixed> $decodedHeader */
+    private function signatureValid(array $decodedHeader, string $signingInput, string $signature): bool
+    {
+        $algorithm = $decodedHeader['alg'] ?? null;
+
+        if ($algorithm === 'RS256') {
+            $kid = $decodedHeader['kid'] ?? null;
+            if (! is_string($kid) || ! isset($this->publicKeyPems[$kid])) {
+                return false;
+            }
+
+            $raw = $this->base64UrlDecode($signature);
+
+            return $raw !== ''
+                && openssl_verify($signingInput, $raw, $this->publicKeyPems[$kid], OPENSSL_ALGO_SHA256) === 1;
+        }
+
+        if ($algorithm === 'HS256' && $this->acceptHs256 && $this->legacySecret !== '') {
+            $expected = $this->base64UrlEncode(hash_hmac('sha256', $signingInput, $this->legacySecret, true));
+
+            return hash_equals($expected, $signature);
+        }
+
+        return false;
     }
 
     private function base64UrlEncode(string $value): string

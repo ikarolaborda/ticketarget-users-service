@@ -8,11 +8,13 @@ use App\Models\User;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Schema;
+use Tests\Support\UsesRs256SigningKey;
 use Tests\TestCase;
 
 final class AdminClaimTest extends TestCase
 {
     use RefreshDatabase;
+    use UsesRs256SigningKey;
 
     protected function beforeRefreshingDatabase(): void
     {
@@ -26,6 +28,7 @@ final class AdminClaimTest extends TestCase
         parent::setUp();
 
         config(['auth_token.secret' => 'test-auth-secret', 'auth_token.ttl_seconds' => 3600]);
+        $this->configureRs256SigningKey();
 
         if (! Schema::hasTable('users')) {
             Schema::create('users', function (Blueprint $table): void {

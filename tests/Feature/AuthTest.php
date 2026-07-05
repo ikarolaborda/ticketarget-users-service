@@ -9,11 +9,13 @@ use App\Services\AuthTokenIssuer;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Schema;
+use Tests\Support\UsesRs256SigningKey;
 use Tests\TestCase;
 
 final class AuthTest extends TestCase
 {
     use RefreshDatabase;
+    use UsesRs256SigningKey;
 
     protected function beforeRefreshingDatabase(): void
     {
@@ -27,6 +29,7 @@ final class AuthTest extends TestCase
         parent::setUp();
 
         config(['auth_token.secret' => 'test-auth-secret', 'auth_token.ttl_seconds' => 3600]);
+        $this->configureRs256SigningKey();
 
         // The users table is owned by the Event service's migrations (shared
         // data plane), so these tests create the minimal schema themselves.
@@ -117,15 +120,28 @@ final class AuthTest extends TestCase
         $this->getJson('/auth/me', ['Authorization' => 'Bearer not.a.jwt'])->assertStatus(401);
         $this->getJson('/auth/me', ['Authorization' => 'Bearer '.$token.'x'])->assertStatus(401);
 
-        // Token signed with a different secret must be rejected.
-        $foreign = (new AuthTokenIssuer('other-secret', 3600, (string) config('auth_token.issuer')))
+        // Token signed with a foreign private key (same kid) must be rejected.
+        $foreign = $this->issuerWith(privateKeyPem: self::generateRsaPrivateKeyPem(), ttlSeconds: 3600)
             ->issue(User::query()->firstOrFail());
         $this->getJson('/auth/me', ['Authorization' => 'Bearer '.$foreign])->assertStatus(401);
 
         // Expired token must be rejected.
-        $expired = (new AuthTokenIssuer('test-auth-secret', -10, (string) config('auth_token.issuer')))
+        $expired = $this->issuerWith(privateKeyPem: self::rs256PrivateKeyPem(), ttlSeconds: -10)
             ->issue(User::query()->firstOrFail());
         $this->getJson('/auth/me', ['Authorization' => 'Bearer '.$expired])->assertStatus(401);
+    }
+
+    private function issuerWith(string $privateKeyPem, int $ttlSeconds): AuthTokenIssuer
+    {
+        return new AuthTokenIssuer(
+            privateKeyPem: $privateKeyPem,
+            kid: 'test-kid',
+            publicKeyPems: ['test-kid' => self::rs256PublicKeyPem()],
+            ttlSeconds: $ttlSeconds,
+            issuer: (string) config('auth_token.issuer'),
+            legacySecret: 'test-auth-secret',
+            acceptHs256: true,
+        );
     }
 
     public function test_it_rejects_a_token_with_a_forged_none_algorithm(): void
