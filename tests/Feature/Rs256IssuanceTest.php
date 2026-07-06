@@ -70,6 +70,7 @@ final class Rs256IssuanceTest extends TestCase
 
     public function test_a_legacy_hs256_token_is_accepted_only_while_the_flag_is_on(): void
     {
+        config(['auth_token.accept_hs256' => true]);
         $this->registerUser('legacy@example.com');
 
         $this->getJson('/auth/me', ['Authorization' => 'Bearer '.$this->legacyHs256Token()])

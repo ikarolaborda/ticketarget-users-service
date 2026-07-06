@@ -78,6 +78,7 @@ final class AdminClaimTest extends TestCase
 
     public function test_a_token_minted_before_the_admin_rollout_is_treated_as_non_admin(): void
     {
+        config(['auth_token.accept_hs256' => true]);
         $this->register('legacy@example.com');
 
         $user = User::query()->where('email', 'legacy@example.com')->firstOrFail();
